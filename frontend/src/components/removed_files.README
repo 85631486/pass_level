@@ -1,0 +1,10 @@
+This file lists component files that were moved from `frontend/src/components/` into module folders.
+Deleted originals (moved to new locations):
+- AIMindmapGenerator.vue -> ai/AIMindmapGenerator.vue
+- AIGeneratePanel.vue -> panels/AIGeneratePanel.vue
+- EnhancedProgressBar.vue -> ui/EnhancedProgressBar.vue
+- InteractiveCodeEditor.vue -> ui/InteractiveCodeEditor.vue
+
+If any references remain to the originals, update imports to the new paths as shown above.
+
+

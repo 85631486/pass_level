@@ -1,0 +1,23 @@
+# AI助手配置文件
+# 支持 provider: "qwen" (阿里云千问) 或 "fastgpt" (FastGPT)
+ai:
+  provider: "qwen"  # 提供商: "qwen" 或 "fastgpt"
+  
+  # 阿里云千问配置 (provider = "qwen" 时使用)
+  qwen:
+    api_key: "sk-08872de4c2f546be94f741d608b36e67"  # API Key (sk)，需要用户配置
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"  # 阿里千问API地址
+    model: "qwen-turbo"  # 默认模型
+  
+  # FastGPT配置 (provider = "fastgpt" 时使用)
+  fastgpt:
+    api_key: "fastgpt-rwvI3sZzv4rXzrgY7wKPwwhpzahfsrmC8xpdm8tfGZocQUme1PnRGfASfLPFfLp"  # FastGPT API Key，需要用户配置
+    base_url: "http://10.70.5.51:9000/api"  # FastGPT API地址，需要用户配置
+    model: ""  # FastGPT 模型ID，需要用户配置
+
+  
+  # 通用配置
+  temperature: 0.7  # 温度参数
+  max_tokens: 8000  # 最大token数
+  timeout: 120  # 请求超时时间（秒）
+

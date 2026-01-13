@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>过关斩将 - Excel界面速通</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="top-nav">
+        <div class="nav-content">
+            <div class="nav-left">
+                <h1 class="task-title">📊 任务2：Excel界面速通</h1>
+            </div>
+            <div class="nav-center">
+                <div class="progress-info">
+                    <span class="progress-label">总体进度</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="totalProgress"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">0%</span>
+                </div>
+            </div>
+            <div class="nav-right">
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-icon">⏱️</span>
+                        <span class="stat-value" id="timeSpent">00:00</span>
+                    </div>
+                    <div class="stat-item highlight">
+                        <span class="stat-icon">💯</span>
+                        <span class="stat-value" id="totalPoints">0分</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 主内容区 -->
+        <main class="content-area" id="contentArea">
+            <!-- 动态加载内容 -->
+        </main>
+
+        <!-- 底部操作栏 -->
+        <footer class="action-bar">
+            <button class="btn btn-secondary" id="prevBtn" disabled>
+                <span>◀</span> 上一步
+            </button>
+            <button class="btn btn-primary" id="submitBtn" style="display: none;">
+                提交答案
+            </button>
+            <button class="btn btn-primary" id="nextBtn">
+                下一步 <span>▶</span>
+            </button>
+            <button class="btn btn-success" id="completeBtn" style="display: none;">
+                🎉 完成学习
+            </button>
+        </footer>
+    </div>
+
+    <!-- 右侧抽屉控制按钮 -->
+    <div class="drawer-controls">
+        <button class="drawer-btn" data-drawer="outline">
+            <span class="icon">📚</span>
+            <span class="label">任务大纲</span>
+        </button>
+        <button class="drawer-btn" data-drawer="progress">
+            <span class="icon">🎯</span>
+            <span class="label">我的进度</span>
+        </button>
+        <button class="drawer-btn" data-drawer="cards">
+            <span class="icon">💳</span>
+            <span class="label">知识卡包</span>
+        </button>
+        <button class="drawer-btn" data-drawer="badges">
+            <span class="icon">🏆</span>
+            <span class="label">成就徽章</span>
+        </button>
+    </div>
+
+    <!-- 抽屉1：任务大纲 -->
+    <div class="drawer" id="drawerOutline">
+        <div class="drawer-header">
+            <h3>📚 任务大纲</h3>
+            <button class="close-drawer">✕</button>
+        </div>
+        <div class="drawer-content">
+            <div class="outline-tree" id="outlineTree">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 抽屉2：我的进度 -->
+    <div class="drawer" id="drawerProgress">
+        <div class="drawer-header">
+            <h3>🎯 我的进度</h3>
+            <button class="close-drawer">✕</button>
+        </div>
+        <div class="drawer-content">
+            <div class="progress-overview">
+                <div class="progress-circle">
+                    <svg width="120" height="120">
+                        <circle cx="60" cy="60" r="50" class="circle-bg"></circle>
+                        <circle cx="60" cy="60" r="50" class="circle-progress" id="circleProgress"></circle>
+                    </svg>
+                    <div class="circle-text" id="circleText">0%</div>
+                </div>
+                <div class="progress-stats">
+                    <div class="stat-row">
+                        <span class="stat-label">⏱️ 学习时长:</span>
+                        <span class="stat-data" id="drawerTime">0分钟</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">🎯 当前步骤:</span>
+                        <span class="stat-data" id="currentStep">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">✅ 已完成操作:</span>
+                        <span class="stat-data" id="completedOps">0/10</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">📝 已答题数:</span>
+                        <span class="stat-data" id="answeredQuestions">0/18</span>
+                    </div>
+                    <div class="stat-row highlight">
+                        <span class="stat-label">💯 当前积分:</span>
+                        <span class="stat-data" id="drawerPoints">0分</span>
+                    </div>
+                </div>
+            </div>
+            <div class="operation-list" id="operationList">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 抽屉3：知识卡包 -->
+    <div class="drawer" id="drawerCards">
+        <div class="drawer-header">
+            <h3>💳 知识卡包</h3>
+            <button class="close-drawer">✕</button>
+        </div>
+        <div class="drawer-content">
+            <div class="cards-count">已收集: <span id="cardsCount">0</span>张</div>
+            <div class="cards-grid" id="cardsGrid">
+                <!-- 动态生成知识卡片 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 抽屉4：成就徽章 -->
+    <div class="drawer" id="drawerBadges">
+        <div class="drawer-header">
+            <h3>🏆 成就徽章</h3>
+            <button class="close-drawer">✕</button>
+        </div>
+        <div class="drawer-content">
+            <div class="badges-count">已获得: <span id="badgesCount">0</span>个</div>
+            <div class="badges-grid" id="badgesGrid">
+                <!-- 动态生成徽章 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 知识卡片弹窗 -->
+    <div class="modal" id="cardModal">
+        <div class="modal-content card-modal">
+            <button class="modal-close">✕</button>
+            <div class="card-modal-header">
+                <span class="card-icon">💡</span>
+                <h3 id="cardTitle">知识卡片</h3>
+            </div>
+            <div class="card-modal-body" id="cardContent">
+                <!-- 动态内容 -->
+            </div>
+            <button class="btn btn-primary" onclick="closeCardModal()">收下了！</button>
+        </div>
+    </div>
+
+    <!-- 学习完成弹窗 -->
+    <div class="modal" id="completeModal">
+        <div class="modal-content complete-modal">
+            <div class="celebration">🎊</div>
+            <h2>恭喜完成任务2！</h2>
+            <div class="complete-stats">
+                <h3>📊 学习报告</h3>
+                <div class="report-grid">
+                    <div class="report-item">
+                        <span class="report-icon">⏱️</span>
+                        <span class="report-label">学习时长</span>
+                        <span class="report-value" id="finalTime">-</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-icon">💯</span>
+                        <span class="report-label">总积分</span>
+                        <span class="report-value" id="finalPoints">-</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-icon">✅</span>
+                        <span class="report-label">操作完成</span>
+                        <span class="report-value" id="finalOps">-</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-icon">📝</span>
+                        <span class="report-label">测试正确率</span>
+                        <span class="report-value" id="finalAccuracy">-</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-icon">💳</span>
+                        <span class="report-label">知识卡收集</span>
+                        <span class="report-value" id="finalCards">-</span>
+                    </div>
+                    <div class="report-item">
+                        <span class="report-icon">🏆</span>
+                        <span class="report-label">解锁徽章</span>
+                        <span class="report-value" id="finalBadges">-</span>
+                    </div>
+                </div>
+                <div class="rank-info">
+                    <p>💪 你超越了班级 <span class="rank-percent">75%</span> 的同学！</p>
+                </div>
+            </div>
+            <div class="complete-actions">
+                <button class="btn btn-secondary">查看详细报告</button>
+                <button class="btn btn-primary">继续下一任务</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

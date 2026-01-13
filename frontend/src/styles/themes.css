@@ -1,0 +1,93 @@
+/* 主题变量定义 */
+
+/* 暗色主题（默认） */
+[data-theme='dark'] {
+  --bg-primary: #0f1419;
+  --bg-secondary: #1a1d29;
+  --bg-tertiary: #161922;
+  --bg-card: #1a1d29;
+  --bg-input: #1a1d29;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(112, 135, 255, 0.1);
+  
+  --text-primary: #e4e4e7;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-color-light: rgba(255, 255, 255, 0.15);
+  --border-color-hover: rgba(255, 255, 255, 0.2);
+  
+  --accent-color: #7087ff;
+  --accent-hover: #8e6bff;
+  --accent-light: rgba(112, 135, 255, 0.1);
+  
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+  
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+/* 明亮色主题 */
+[data-theme='light'] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #f1f3f5;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-active: rgba(112, 135, 255, 0.1);
+  
+  --text-primary: #1a1d29;
+  --text-secondary: rgba(26, 29, 41, 0.7);
+  --text-tertiary: rgba(26, 29, 41, 0.5);
+  
+  --border-color: rgba(0, 0, 0, 0.1);
+  --border-color-light: rgba(0, 0, 0, 0.15);
+  --border-color-hover: rgba(0, 0, 0, 0.2);
+  
+  --accent-color: #7087ff;
+  --accent-hover: #8e6bff;
+  --accent-light: rgba(112, 135, 255, 0.1);
+  
+  --success-color: #10b981;
+  --error-color: #ef4444;
+  --warning-color: #f59e0b;
+  
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+/* 全局样式应用 */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

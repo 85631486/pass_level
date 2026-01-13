@@ -1,0 +1,159 @@
+:root {
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #f4f4f9;
+  background-color: #0c0d1f;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #0c0d1f;
+}
+
+a {
+  color: inherit;
+}
+
+input,
+button {
+  font-family: inherit;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.form-control {
+  padding: 0.85rem 1rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border-color-light);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-light);
+  background: var(--bg-input);
+}
+
+/* Textarea styling */
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* Select dropdown styling */
+.form-control[type="select"],
+.form-control select,
+select.form-control {
+  background-color: var(--bg-input);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23e4e4e7' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px;
+  padding-right: 2.5rem;
+}
+
+[data-theme='light'] .form-control[type="select"],
+[data-theme='light'] .form-control select,
+[data-theme='light'] select.form-control {
+  background-color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a1d29' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px;
+}
+
+[data-theme='light'] .form-control select:focus {
+  background-color: #ffffff !important;
+}
+
+.form-control select:focus {
+  background-color: var(--bg-input);
+}
+
+.form-control option {
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  padding: 0.5rem;
+}
+
+.form-control option:hover,
+.form-control option:focus {
+  background: var(--bg-hover) !important;
+}
+
+.form-control option:checked {
+  background: var(--accent-color) !important;
+  color: #fff !important;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: none;
+  border-radius: 0.9rem;
+  font-weight: 600;
+  background: linear-gradient(120deg, #7087ff, #8e6bff);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(112, 135, 255, 0.3);
+}
+
+.helper-text {
+  text-align: center;
+  margin-top: 1rem;
+  color: var(--text-secondary);
+}
+
+.link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.link:hover {
+  text-decoration: underline;
+  color: var(--accent-hover);
+}
+
+.error-text {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0;
+}
