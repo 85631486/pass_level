@@ -215,6 +215,7 @@ import ComponentPropertyEditor from './panels/ComponentPropertyEditor.vue'
 import CanvasEditor from './editor/CanvasEditor.vue'
 import { levelsApi } from '../api/levels'
 import { getFeedbackSystem } from '../utils/feedbackSystem'
+import { autoLayoutComponents, hasOverlappingComponents } from '../utils/autoLayout'
 
 const feedbackSystem = getFeedbackSystem()
 
@@ -363,6 +364,13 @@ function migrateData(data: CourseData): CourseData {
         height: 1080,
         backgroundColor: '#ffffff',
       }
+    }
+    
+    // 应用自动布局算法以修复组件重叠问题
+    const canvasWidth = step.canvasConfig?.width || 1920
+    const canvasHeight = step.canvasConfig?.height || 1080
+    if (step.components && step.components.length > 0 && hasOverlappingComponents(step.components)) {
+      step.components = autoLayoutComponents(step.components, canvasWidth, canvasHeight, 20)
     }
     
     // 确保组件数组存在并使用局部变量统一引用，避免类型推断问题

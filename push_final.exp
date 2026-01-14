@@ -1,0 +1,26 @@
+set timeout 120
+spawn git push origin main
+expect {
+    "Username for 'https://github.com':" {
+        send "85631486@qq.com\r"
+        exp_continue
+    }
+    "Password for 'https://85631486@qq.com@github.com':" {
+        send "7901324NIhao!@#$%^\r"
+        exp_continue
+    }
+    "Everything up-to-date" {
+        puts "Success: Up to date"
+    }
+    "master -> master" {
+        puts "Success: Pushed master"
+    }
+    "main -> main" {
+        puts "Success: Pushed main"
+    }
+    timeout {
+        puts "Error: Timeout"
+        exit 1
+    }
+    eof
+}
