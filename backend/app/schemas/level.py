@@ -25,6 +25,7 @@ class LevelUpdate(BaseModel):
     is_visible: Optional[bool] = Field(None, description="是否可见")
     teaching_guide_md: Optional[str] = Field(None, description="教案/实验指导书（Markdown格式）")
     allow_skip: Optional[bool] = Field(None, description="是否允许跳过关卡")
+    course_data_json: Optional[str] = Field(None, description="课程数据JSON")
 
 
 class LevelRead(LevelBase):

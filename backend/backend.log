@@ -1,0 +1,25 @@
+nohup: ignoring input
+INFO:app.main:Database initialized
+INFO:app.main:Flask application created
+ * Serving Flask app 'app.main'
+ * Debug mode: off
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://169.254.0.21:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:42:28] "[31m[1mPOST /api/v1/auth/login HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:42:39] "[31m[1mPOST /api/v1/auth/login HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:44:04] "[31m[1mPOST /api/v1/auth/login HTTP/1.1[0m" 400 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:44:21] "[31m[1mPOST /api/v1/auth/login HTTP/1.1[0m" 401 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:44:45] "POST /api/v1/auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:46:40] "POST /api/v1/auth/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:46:40] "GET /api/v1/chapters HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:46:45] "GET /api/v1/chapters/5/map HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:46:45] "GET /api/v1/chapters/5 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:46:51] "GET /api/v1/levels/163 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:47:20] "GET /api/v1/chapters/5/map HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:47:21] "GET /api/v1/chapters/5 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:47:26] "GET /api/v1/levels/156 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [13/Jan/2026 22:47:58] "POST /api/v1/ai-assistant/teaching-guide-to-course-json-stream HTTP/1.1" 200 -
+INFO:httpx:HTTP Request: POST https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions "HTTP/1.1 200 OK"

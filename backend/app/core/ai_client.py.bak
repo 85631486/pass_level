@@ -1,0 +1,472 @@
+'''
+AI 客户端封装（支持阿里云千问和 FastGPT）
+
+本模块是**对外部大模型服务的最薄封装层**，职责：
+
+- 负责读取 `config/ai_config.yaml` 配置
+- 封装 HTTP 请求（包括普通模式与流式输出模式）
+- 支持多 provider（qwen/fastgpt）
+- 为教学平台的业务场景提供若干高层 API：
+  - 思维导图 / 关卡树生成
+  - 任务 / 卡片 / 环节 / 题目生成
+  - 学习助手问答
+
+注意：这里**不涉及数据库与业务日志**，只关注「构造 Prompt → 调用接口 → 解析 JSON」。
+'''
+import logging
+import json
+import yaml
+import os
+from pathlib import Path
+from typing import Optional, Dict, Any, Callable, Iterator
+import httpx
+
+logger = logging.getLogger(__name__)
+
+# 调试模式：通过环境变量 DEBUG_AI_STREAM 控制
+DEBUG_AI_STREAM = os.getenv("DEBUG_AI_STREAM", "false").lower() == "true"
+
+
+# ==================== 辅助函数 ====================
+
+def _extract_content_from_choices(choice: Dict[str, Any]) -> str:
+    '''从 choice 对象中提取内容，支持多种格式'''
+    content = ''
+    
+    # 优先从 delta.content 提取（流式格式）
+    if 'delta' in choice:
+        delta = choice.get('delta', {})
+        content = delta.get('content', '')
+    
+    # 如果没有 delta，尝试从 message.content 提取
+    if not content and 'message' in choice:
+        message = choice.get('message', {})
+        content = message.get('content', '')
+    
+    # 如果还没有，尝试直接从 choice 中提取
+    if not content:
+        content = choice.get('content', '')
+    
+    return content
+
+
+def _extract_content_from_response(result: Dict[str, Any]) -> str:
+    '''从非流式响应中提取内容，支持多种格式'''
+    content: str = ""
+    
+    # 1. OpenAI 兼容格式
+    if isinstance(result, dict) and "choices" in result and result["choices"]:
+        content = (
+            result["choices"][0]
+            .get("message", {})
+            .get("content", "")
+        ) or result["choices"][0].get("text", "")
+    
+    # 2. FastGPT 常见格式：data.answer 或 data.content
+    if not content and isinstance(result, dict) and "data" in result:
+        data = result["data"]
+        if isinstance(data, dict):
+            content = (
+                data.get("answer")
+                or data.get("content")
+                or ""
+            )
+    
+    # 3. 顶层 answer/content
+    if not content and isinstance(result, dict):
+        content = result.get("answer") or result.get("content") or ""
+    
+    return content
+
+
+def _parse_sse_data_line(line: str) -> Optional[str]:
+    '''解析 SSE 格式的 data 行，返回数据字符串（去掉前缀）'''
+    if line.startswith("data: "):
+        return line[6:]  # 去掉 "data: " 前缀
+    elif line.startswith("data:"):
+        return line[5:]  # 去掉 "data:" 前缀（无空格情况）
+    return None
+
+
+def _check_stream_response_status(response: httpx.Response, api_name: str = "API") -> None:
+    '''检查流式响应的状态码，如果非 200 则抛出异常'''
+    if response.status_code != 200:
+        raise httpx.HTTPStatusError(
+            f"{api_name}调用失败: {response.status_code}",
+            request=response.request,
+            response=response
+        )
+
+
+def _handle_http_error(e: httpx.HTTPStatusError, api_name: str = "API") -> Exception:
+    '''处理 HTTP 错误，返回友好的异常信息'''
+    error_detail = ""
+    try:
+        error_detail = e.response.json()
+    except Exception:
+        error_detail = e.response.text
+
+    if e.response.status_code == 429:
+        return Exception(f"{api_name} 限流，请稍后重试。详情: {error_detail}")
+    elif e.response.status_code == 401:
+        return Exception(f"{api_name} Key 无效。详情: {error_detail}")
+    else:
+        return Exception(f"{api_name}调用失败: HTTP {e.response.status_code}, 详情: {error_detail}")
+
+
+def _handle_stream_http_error(e: httpx.HTTPStatusError, api_name: str = "API") -> Exception:
+    '''处理流式响应的 HTTP 错误'''
+    error_detail = ""
+    try:
+        # 尝试读取错误响应体
+        if hasattr(e.response, 'read'):
+            try:
+                error_text = e.response.read().decode('utf-8')
+                try:
+                    error_detail = json.loads(error_text)
+                except:
+                    error_detail = error_text
+            except:
+                error_detail = f"无法读取错误响应体"
+        else:
+            error_detail = str(e.response)
+    except Exception as ex:
+        error_detail = f"解析错误信息失败: {str(ex)}"
+
+    if e.response.status_code == 429:
+        return Exception(f"{api_name} 限流，请稍后重试。详情: {error_detail}")
+    elif e.response.status_code == 401:
+        return Exception(f"{api_name} Key 无效。详情: {error_detail}")
+    else:
+        return Exception(f"{api_name}调用失败: HTTP {e.response.status_code}, 详情: {error_detail}")
+
+
+# ==================== AIClient 类 ====================
+
+class AIClient:
+    '''AI 客户端（支持阿里云千问和 FastGPT）
+
+    用于向兼容 OpenAI Chat Completions 协议的服务发送请求。
+
+    推荐只在 service 层中组合使用，不直接暴露给视图 / 路由层。
+    '''
+    
+    def __init__(self):
+        self.config = self._load_config()
+        ai_config = self.config.get("ai", {})
+        
+        # 获取 provider（默认 qwen）
+        self.provider = (ai_config.get("provider", "qwen") or "qwen").lower()
+        
+        # 根据 provider 加载配置
+        if self.provider == "qwen":
+            qwen_config = ai_config.get("qwen", {})
+            self.api_key = qwen_config.get("api_key", "")
+            self.base_url = qwen_config.get("base_url", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+            self.model = qwen_config.get("model", "qwen-plus") # Use a more powerful model
+        elif self.provider == "fastgpt":
+            fastgpt_config = ai_config.get("fastgpt", {})
+            self.api_key = fastgpt_config.get("api_key", "")
+            self.base_url = fastgpt_config.get("base_url", "https://fastgpt.run/api")
+            self.model = fastgpt_config.get("model", "")
+        else:
+            raise ValueError(f"不支持的 provider: {self.provider}，支持的值: qwen, fastgpt")
+        
+        if not self.api_key:
+            logger.warning(f"AI API Key not configured for provider: {self.provider}")
+        
+        # 通用配置
+        self.temperature = ai_config.get("temperature", 0.5) # Lower temperature for more predictable structure
+        self.max_tokens = ai_config.get("max_tokens", 8000)
+        self.timeout = ai_config.get("timeout", 180) # Longer timeout for complex generation
+    
+    def _load_config(self) -> dict:
+        '''加载 AI 配置文件'''
+        config_path = Path(__file__).resolve().parents[2] / "config" / "ai_config.yaml"
+        try:
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+            else:
+                logger.warning(f"AI config file not found: {config_path}")
+                return {}
+        except Exception as e:
+            logger.error(f"Error loading AI config: {e}", exc_info=True)
+            return {}
+
+    def _call_api(self, messages: list, **kwargs) -> Optional[str]:
+        '''调用 Chat Completions 接口（一次性返回）'''
+        if not self.api_key:
+            logger.warning("AI API Key not configured")
+            return None
+        
+        if self.provider == "qwen":
+            return self._call_qwen_api(messages, **kwargs)
+        elif self.provider == "fastgpt":
+            return self._call_fastgpt_api(messages, **kwargs)
+        else:
+            logger.error(f"Unsupported provider: {self.provider}")
+            return None
+
+    def _call_qwen_api(self, messages: list, **kwargs) -> Optional[str]:
+        '''调用阿里云千问 API（兼容 OpenAI 格式）'''
+        url = f"{self.base_url}/chat/completions"
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": kwargs.get("model", self.model),
+            "messages": messages,
+            "temperature": kwargs.get("temperature", self.temperature),
+            "max_tokens": kwargs.get("max_tokens", self.max_tokens),
+            **{k: v for k, v in kwargs.items() if k not in ["model", "temperature", "max_tokens"]}
+        }
+        
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                
+                result = response.json()
+                content = _extract_content_from_response(result)
+                
+                if content:
+                    return content
+                else:
+                    logger.error(f"Unexpected API response: {result}")
+                    return None
+                    
+        except httpx.HTTPStatusError as e:
+            error = _handle_http_error(e, "阿里云千问 API")
+            logger.error(f"Error calling AI API: {error}", exc_info=True)
+            raise error # Re-raise the exception to be handled by the service layer
+        except httpx.RequestError as e:
+            logger.error(f"Network error calling AI API: {e}", exc_info=True)
+            raise Exception(f"网络错误: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error in AI API call: {e}", exc_info=True)
+            raise Exception(f"未知错误: {e}")
+
+    def _call_api_stream(self, messages: list, callback: Optional[Callable] = None, **kwargs) -> Optional[str]:
+        '''调用 Chat Completions 接口（流式返回）'''
+        if not self.api_key:
+            logger.warning("AI API Key not configured")
+            return None
+
+        if self.provider == "qwen":
+            return self._call_qwen_api_stream(messages, callback, **kwargs)
+        elif self.provider == "fastgpt":
+            return self._call_fastgpt_api_stream(messages, callback, **kwargs)
+        else:
+            logger.error(f"Unsupported provider for streaming: {self.provider}")
+            return None
+
+    def _call_qwen_api_stream(self, messages: list, callback: Optional[Callable] = None, **kwargs) -> Optional[str]:
+        '''调用阿里云千问流式 API'''
+        url = f"{self.base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream"
+        }
+        payload = {
+            "model": kwargs.get("model", self.model),
+            "messages": messages,
+            "temperature": kwargs.get("temperature", self.temperature),
+            "max_tokens": kwargs.get("max_tokens", self.max_tokens),
+            "stream": True,
+        }
+
+        full_response = []
+        try:
+            with httpx.stream("POST", url, headers=headers, json=payload, timeout=self.timeout) as response:
+                _check_stream_response_status(response, "阿里云千问流式 API")
+                
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    
+                    data_str = _parse_sse_data_line(line)
+                    if not data_str:
+                        continue
+
+                    if data_str == "[DONE]":
+                        break
+
+                    try:
+                        chunk = json.loads(data_str)
+                        content = _extract_content_from_choices(chunk.get("choices", [{}])[0])
+                        if content:
+                            full_response.append(content)
+                            if callback:
+                                callback(content)
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to parse stream chunk: {data_str}")
+                        continue
+            
+            return "".join(full_response)
+
+        except httpx.HTTPStatusError as e:
+            error = _handle_stream_http_error(e, "阿里云千问流式 API")
+            logger.error(f"Error in AI stream: {error}", exc_info=True)
+            raise error
+        except Exception as e:
+            logger.error(f"Unexpected error in AI stream: {e}", exc_info=True)
+            raise Exception(f"流式 API 未知错误: {e}")
+
+    def _cleanup_json_response(self, raw_json_str: str) -> Optional[Dict[str, Any]]:
+        '''清理并解析模型返回的 JSON 字符串'''
+        if not raw_json_str:
+            return None
+        
+        try:
+            # 尝试直接解析
+            return json.loads(raw_json_str)
+        except json.JSONDecodeError:
+            # 如果失败，尝试从 Markdown 代码块中提取
+            cleaned = raw_json_str.strip()
+            if cleaned.startswith("```json"):
+                cleaned = cleaned[7:]
+            if cleaned.startswith("```"):
+                cleaned = cleaned[3:]
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3]
+            cleaned = cleaned.strip()
+            
+            try:
+                return json.loads(cleaned)
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse JSON even after cleaning, returning None.")
+                return None
+
+    def _build_teaching_guide_to_course_json_prompt(self, markdown: str) -> str:
+        '''构造 "Markdown 到课程 JSON" 的 Prompt'''
+        example_json_str = json.dumps({
+            "meta": {
+                "title": "课程标题",
+                "preparations": ["预备知识1", "预备知识2"],
+                "goals": [
+                    {"title": "知识目标", "items": ["目标1"]},
+                    {"title": "技能目标", "items": ["目标2"]}
+                ]
+            },
+            "steps": [
+                {
+                    "id": "step-1",
+                    "title": "第一页：基本概念",
+                    "canvasConfig": { "width": 1200, "height": 800, "backgroundColor": "#ffffff" },
+                    "components": [
+                        {
+                            "id": "comp-1-1",
+                            "type": "text",
+                            "config": { "content": "<h1>大语言模型基础</h1>" },
+                            "position": { "x": 100, "y": 50, "width": 1000, "height": 100 }
+                        },
+                        {
+                            "id": "comp-1-2",
+                            "type": "text",
+                            "config": { "content": "<p>这是一个介绍性的段落...</p>" },
+                            "position": { "x": 100, "y": 200, "width": 500, "height": 400 }
+                        },
+                        {
+                            "id": "comp-1-3",
+                            "type": "image",
+                            "config": { "url": "https://path/to/image.png" },
+                            "position": { "x": 650, "y": 200, "width": 450, "height": 400 }
+                        }
+                    ]
+                }
+            ]
+        }, indent=2, ensure_ascii=False)
+
+        prompt = f'''
+你是一位顶级的教学设计师和前端工程师，擅长将静态的 Markdown 教案转换为动态、可交互、可视化的幻灯片页面。你的任务是把下面的 Markdown 实验指导书，转换为用于驱动幻灯片编辑器的 JSON 数据。
+
+【重要约束】
+1.  **严格的 JSON 格式**：最终输出必须是严格符合规范的 JSON 对象，不能包含任何注释或 Markdown 代码块标记。
+2.  **结构完整性**：JSON 结构必须与下面的示例完全一致，字段名、嵌套结构、大小写都不能改变。
+3.  **组件化思维**：将 Markdown 的每个部分（标题、段落、图片、代码、列表、题目等）都视为独立的组件，并为它们分配合理的 ID、类型、位置和尺寸。
+4.  **自动布局**：你需要为每个组件生成 `position` (x, y) 和 `size` (width, height) 属性，模拟一个标准的 PPT 布局。例如，标题在顶部，内容在下方或左右分布。
+
+【JSON 结构示例】
+```json
+{example_json_str}
+```
+
+【解析要求】
+-   **顶层结构**：最外层必须是一个包含 `meta` 和 `steps` 字段的对象。
+-   **`meta` 对象**：从 Markdown 的前言部分提取课程的 `title`（标题）、`preparations`（准备工作）和 `goals`（学习目标）。
+-   **`steps` 数组**：将 Markdown 的主要内容按逻辑章节或操作步骤拆分为多个 `step` 对象，每个 `step` 代表一页幻灯片。
+-   **`step` 对象**：
+    -   `id`: 唯一的步骤 ID，例如 "step-1", "step-2"。
+    -   `title`: 幻灯片的标题。
+    -   `canvasConfig`: 定义幻灯片画布的属性，默认 `{ "width": 1200, "height": 800, "backgroundColor": "#ffffff" }`。
+    -   `components`: 包含该幻灯片上所有可视化元素的数组。
+-   **`component` 对象**：
+    -   `id`: 唯一的组件 ID，例如 "comp-1-1", "comp-1-2"。
+    -   `type`: 组件类型，必须是以下之一：`"text"`, `"image"`, `"code"`, `"quiz"`, `"practice"`, `"submission"`。
+    -   `config`: 组件的具体配置，内容取决于 `type`。
+    -   `position`: 组件在画布上的位置 `{ "x": number, "y": number }`。
+    -   `size`: 组件的尺寸 `{ "width": number, "height": number }`。
+
+【组件 `config` 详解】
+-   `type: "text"`: `config` 包含 `{ "content": "HTML 格式的文本" }`。将 Markdown 段落、标题、列表转换为 HTML 放入 `content`。
+-   `type: "image"`: `config` 包含 `{ "url": "图片链接" }`。如果 Markdown 中有图片，请提取其 URL。
+-   `type: "code"`: `config` 包含 `{ "language": "python", "template": "代码内容" }`。
+-   `type: "quiz"`: `config` 包含 `{ "questions": [...] }`，用于「课堂问答」。
+-   `type: "practice"`: `config` 包含 `{ "title": "练习标题", "tasks": [...] }`，用于「动手练习」。
+-   `type: "submission"`: `config` 包含 `{ "enable": true, "title": "提交作业" }`，用于需要学生提交成果的环节。
+
+现在，请将下面的 Markdown 内容转换为符合上述所有要求的 JSON 数据。
+
+【待转换的 Markdown 内容】
+
+```markdown
+{markdown}
+```
+'''
+        return prompt
+
+    def teaching_guide_to_course_json_stream(
+        self,
+        markdown: str,
+        stream_callback=None,
+    ) -> Optional[Dict[str, Any]]:
+        '''将Markdown实验指导书转换为课程JSON（courseData）（流式输出）'''
+        prompt = self._build_teaching_guide_to_course_json_prompt(markdown)
+
+        messages = [
+            {
+                "role": "system",
+                "content": "你是一位顶级的教学设计师和前端工程师，只输出严格符合要求的 JSON 数据，不输出任何解释文字。",
+            },
+            {"role": "user", "content": prompt},
+        ]
+
+        full_response_str = self._call_api_stream(
+            messages,
+            callback=stream_callback,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            model=self.model,
+        )
+
+        return self._cleanup_json_response(full_response_str)
+
+    # ... (rest of the methods remain the same)
+
+    def generate_mindmap(
+        self,
+        chapter_name: str,
+        description: Optional[str] = None,
+        knowledge_points: Optional[list] = None,
+    ) -> Optional[Dict[str, Any]]:
+        '''AI 生成思维导图（基于篇章名称和知识点）'''
+        # ... (implementation)
+        pass
+
+    # ... (other methods)
+

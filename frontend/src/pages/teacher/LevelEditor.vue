@@ -20,6 +20,9 @@
           <button class="btn-secondary" @click="handleGeneratePreview" :disabled="previewLoading">
             {{ previewLoading ? '生成中...' : '✨ AI转换' }}
           </button>
+          <button class="btn-secondary" @click="handleApplyToVisualEditor" :disabled="!courseData || saving">
+            {{ saving ? '保存中...' : '🎯 应用到可视化编辑器' }}
+          </button>
         </div>
         <div class="action-group">
           <span class="action-label">预览测试：</span>
@@ -444,6 +447,39 @@ const openVisualEditor = () => {
     name: 'teacher-visual-editor',
     params: { levelId: levelId }
   })
+}
+
+const handleApplyToVisualEditor = async () => {
+  if (!courseData.value || !level.value) {
+    alert('没有可应用的数据，请先执行 AI 转换')
+    return
+  }
+
+  saving.value = true
+  try {
+    // 保存 courseData 到数据库
+    await levelsApi.updateLevel(levelId, {
+      course_data_json: JSON.stringify(courseData.value)
+    })
+    appendLog('AI 转换的数据已保存到数据库')
+    logStatus.value = 'success'
+    
+    // 跳转到可视化编辑器
+    setTimeout(() => {
+      router.push({
+        name: 'teacher-visual-editor',
+        params: { levelId: levelId }
+      })
+    }, 500)
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.detail || '保存失败'
+    appendLog(`保存失败：${errorMsg}`)
+    logStatus.value = 'error'
+    console.error('Error saving course data:', err)
+    alert(errorMsg)
+  } finally {
+    saving.value = false
+  }
 }
 
 const handleSave = async () => {

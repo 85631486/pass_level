@@ -1,0 +1,6 @@
+INFO:app.main:Database initialized
+INFO:app.main:Flask application created
+ * Serving Flask app 'app.main'
+ * Debug mode: off
+Address already in use
+Port 8000 is in use by another program. Either identify and stop that program, or start the server with a different port.

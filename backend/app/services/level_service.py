@@ -56,6 +56,7 @@ class LevelService:
         is_visible: Optional[bool] = None,
         teaching_guide_md: Optional[str] = None,
         allow_skip: Optional[bool] = None,
+        course_data_json: Optional[str] = None,
     ) -> Level:
         """更新关卡"""
         level = LevelService.get_level(db, level_id)
@@ -74,6 +75,8 @@ class LevelService:
             level.teaching_guide_md = teaching_guide_md
         if allow_skip is not None:
             level.allow_skip = allow_skip
+        if course_data_json is not None:
+            level.course_data_json = course_data_json
         
         db.commit()
         db.refresh(level)

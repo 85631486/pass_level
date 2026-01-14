@@ -155,6 +155,7 @@ def update_level(level_id: int):
             is_visible=payload.is_visible,
             teaching_guide_md=payload.teaching_guide_md,
             allow_skip=payload.allow_skip,
+            course_data_json=payload.course_data_json,
         )
         db.commit()
         logger.info(f"Level updated: {level_id} by user {current_user.id}")
