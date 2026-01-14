@@ -361,6 +361,7 @@ npm run test
 - [完整设计文档](./doc/过关斩将游戏教学平台完整设计文档.md) - 系统设计文档
 - [AI模块文档](./backend/app/AI_README.md) - AI助手模块说明
 - [地图编辑器文档](./frontend/src/pages/teacher/LevelMapEditor.README.md) - 地图编辑器使用说明
+- [教师端功能指南](./Teacher_Guide.md) - 教师端核心功能与操作流程指引
 
 ## 🤝 贡献指南
 
