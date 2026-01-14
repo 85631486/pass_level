@@ -1,0 +1,7 @@
+set timeout 60
+spawn git push origin main
+expect "Username for 'https://github.com':"
+send "85631486@qq.com\r"
+expect "Password for 'https://85631486@qq.com@github.com':"
+send "7901324NIhao!@#$%^\r"
+expect eof
