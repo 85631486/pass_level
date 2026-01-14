@@ -241,6 +241,69 @@ class AIClient:
         raw = self._call_api(messages)
         return self._cleanup_json_response(raw)
 
+    def generate_mindmap_from_syllabus_stream(
+        self,
+        syllabus: str,
+        chapter_name: Optional[str] = None,
+        description: Optional[str] = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
+        extra_instructions: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """从教学大纲生成思维导图（流式输出）"""
+        system_prompt = """你是一位资深的教育专家和课程设计师，擅长从复杂的教学大纲中提取核心知识体系。
+你的任务是分析用户提供的教学大纲，并将其转换为一个逻辑严密的思维导图 JSON 结构。
+
+请遵循以下原则：
+1. **核心导向**：忽略课程基本信息（如学分、学时、考核方式、先修课程、参考教材等），只提取实际的教学章节和知识点。
+2. **层级结构**：根节点应为课程名称或篇章名称。一级子节点应为主要章节或模块，二级及以下子节点应为具体的知识点或技能点。
+3. **简洁明了**：节点名称应简练，避免长句。
+4. **逻辑清晰**：确保节点之间的父子关系符合学科逻辑。
+"""
+        user_content = f"请根据以下教学大纲生成思维导图 JSON 结构。\n"
+        if chapter_name: user_content += f"建议根节点名称：{chapter_name}\n"
+        if description: user_content += f"背景描述：{description}\n"
+        user_content += f"教学大纲内容：\n{syllabus}\n"
+        if extra_instructions: user_content += f"用户额外要求：{extra_instructions}\n"
+        
+        user_content += """
+请输出一个严格符合以下格式的 JSON 对象：
+{
+  "root": {
+    "name": "课程/篇章名称",
+    "children": [
+      {
+        "name": "章节/模块名称",
+        "children": [
+          {
+            "name": "知识点名称",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}
+注意：只输出 JSON 代码块，不要包含任何前导或后续的文字说明。
+"""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content}
+        ]
+        raw_response = self._call_api_stream(messages, callback=stream_callback)
+        return self._cleanup_json_response(raw_response)
+
+    def generate_mindmap_from_syllabus(
+        self,
+        syllabus: str,
+        chapter_name: Optional[str] = None,
+        description: Optional[str] = None,
+        extra_instructions: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """从教学大纲生成思维导图（非流式）"""
+        return self.generate_mindmap_from_syllabus_stream(
+            syllabus, chapter_name, description, extra_instructions=extra_instructions
+        )
+
     def generate_data_file_stream(self, task_name: str, data_requirements: str, file_format: str = "csv", stream_callback=None) -> Optional[str]:
         """生成示例数据文件内容"""
         messages = [
@@ -256,8 +319,6 @@ class AIClient:
     def generate_cards(self, name, desc): return self._cleanup_json_response(self._call_api([{"role":"user","content":f"生成卡片JSON: {name}"}]))
     def generate_phases(self, name, desc): return self._cleanup_json_response(self._call_api([{"role":"user","content":f"生成步骤JSON: {name}"}]))
     def generate_questions(self, name, kp, sp): return self._cleanup_json_response(self._call_api([{"role":"user","content":f"生成题目JSON: {name}"}]))
-    def generate_mindmap_from_syllabus_stream(self, **kwargs): return self.generate_mindmap(**kwargs)
-    def generate_mindmap_from_syllabus(self, **kwargs): return self.generate_mindmap(**kwargs)
     def generate_data_file(self, **kwargs): return self.generate_data_file_stream(**kwargs)
     def learning_help(self, q, c): return self._call_api([{"role":"user","content":f"问题: {q}\n背景: {c}"}])
     def teaching_guide_to_course_json(self, md): return self.teaching_guide_to_course_json_stream(md)
